@@ -6,7 +6,7 @@ import pandas as pd
 from ramjet.data_interface.tess_data_interface import get_spoc_tic_id_list_from_mast
 from ramjet.data_interface.tess_toi_data_interface import TessToiDataInterface, ToiColumns
 from ramjet.photometric_database.tess_ffi_light_curve import TessFfiLightCurve
-from qusi_evaluation.download_spoc_sector_27_to_56_light_curve_data import spoc_sector_27_to_56_light_curve_directory
+from qusi_evaluation.download_spoc_sector_27_to_56_light_curve_data import spoc_sector_27_to_55_light_curve_directory
 
 
 def get_non_transit_candidate_tic_ids():
@@ -72,7 +72,7 @@ def create_split_datasets_metadata_csv_files_for_paths_list(path_list: list[Path
 
 def main():
     print(f'mark-1')
-    light_curve_paths = list(spoc_sector_27_to_56_light_curve_directory.glob('**/*.fits'))
+    light_curve_paths = list(spoc_sector_27_to_55_light_curve_directory.glob('**/*.fits'))
     print(f'len paths: {len(light_curve_paths)}')
     transit_tic_ids = get_transit_tic_ids()
     print(f'Transit len {len(transit_tic_ids)}')
