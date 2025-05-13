@@ -1,3 +1,8 @@
+"""
+TODO: Warning, this file had been sitting for a while with changes and was committed without confirming it's current
+state.
+"""
+
 import re
 from functools import partial
 from pathlib import Path
@@ -7,8 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from astropy.io import fits
 from bokeh.io import show
-from gobo.internal.corner_plot import create_histogram_figure
 
+from qusi.internal.finite_standard_light_curve_observation_dataset import FiniteStandardLightCurveObservationDataset
 from qusi.internal.light_curve_collection import LightCurveObservationCollection, \
     create_constant_label_for_path_function
 from qusi.internal.light_curve_dataset import LightCurveDataset, \
@@ -112,8 +117,8 @@ def get_test_dataset():
             load_times_and_fluxes_from_path_function=load_i_band_times_and_magnitudes_from_light_curve_path,
             load_label_from_path_function=create_constant_label_for_path_function(class_index))
         light_curve_collections.append(light_curve_collection)
-    test_light_curve_dataset = LightCurveDataset.new(
-        standard_light_curve_collections=light_curve_collections,
+    test_light_curve_dataset = FiniteStandardLightCurveObservationDataset.new(
+        light_curve_collections=light_curve_collections,
         post_injection_transform=partial(default_light_curve_observation_post_injection_transform, length=7000)
     )
     return test_light_curve_dataset
@@ -122,17 +127,23 @@ def get_test_dataset():
 if __name__ == '__main__':
     classes = ['CEP', 'DSCT', 'ECL', 'ELL', 'HB', 'LPV', 'RRLYR', 'T2CEP']
     lengths = []
+    no_i_band_count = 0
+    class_count_dictionary = {}
     for class_ in classes:
+        class_count_dictionary[class_] = 0
         class_paths = get_paths_for_class(class_)
         for class_path in class_paths:
             try:
                 times, magnitudes = load_i_band_times_and_magnitudes_from_light_curve_path(class_path)
             except ValueError:
+                no_i_band_count += 1
                 continue
             lengths.append(times.shape[0])
             if len(lengths) % 1000 == 0:
                 print(len(lengths))
-    histogram_figure = create_histogram_figure(lengths)
-    show(histogram_figure)
+            class_count_dictionary[class_] += 1
+    # histogram_figure = create_histogram_figure(lengths)
+    # show(histogram_figure)
     print(len(lengths))
     print(np.median(lengths))
+    print(class_count_dictionary)
