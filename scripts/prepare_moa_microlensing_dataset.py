@@ -12,13 +12,14 @@ from merida.lightcurves_cls import Metadata, LightCurvesNExSciURL
 
 def download_lightcurve(light_curve_name):
     light_curve = LightCurvesNExSciURL(lightcurve_name_=light_curve_name, lightcurve_class_='')
-    light_curve.save_lightcurve_from_url_as_feather(path_to_save='data/moa_light_curves')
+    light_curve.save_lightcurve_from_url_as_feather(path_to_save='data/moa_light_curves/')
 
 
 def prepare_moa_microlensing_dataset():
     candidate_tags = ['c', 'cf', 'cp', 'cw', 'cs', 'cb']
     non_candidate_tags = ['v', 'n', 'nr', 'm', 'j']
     no_tag_tags = ['no_tag', '', None, np.nan]
+    Path('data/moa_light_curves').mkdir(exist_ok=True, parents=True)
     metadata_data_frame = Metadata().dataframe
     metadata_data_frame = metadata_data_frame.drop('tag', axis=1)
     candlist_data_frame = prepare_candidate_data_frame()
@@ -47,8 +48,8 @@ def prepare_moa_microlensing_dataset():
 
 
 def prepare_candidate_data_frame():
-    candlist_data_frame = pd.read_csv(Path('/Users/golmschenk/Code/merida/data/candlist_2023Oct12.txt'), comment='#',
-                                     sep='\s+', names=list(range(33)))
+    candlist_data_frame = pd.read_csv(Path('data/candlist_2023Oct12.txt'), comment='#',
+                                      sep='\s+', names=list(range(33)))
     def extract_field_number(field_id: str) -> int:
         return int(field_id.replace('gb', ''))
 
