@@ -8,4 +8,4 @@
 #SBATCH --mem=150000
 #SBATCH --time=1-00:00:00
 
-srun python scripts/train_transit.py
+srun python scripts/prepare_moa_microlensing_dataset.py

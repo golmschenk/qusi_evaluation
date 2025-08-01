@@ -7,6 +7,7 @@ state.
 # from qusi.internal.torrin_model import Torrin, Torrin1, Torrin2, Torrin3, Torrin4, Torrin5, Torrin6, Torrin7, Torrin9
 
 from qusi.internal.chyrin_model import Chyrin
+from qusi.internal.lightning_train_session import train_session as lightning_train_session
 from qusi.internal.train_session import train_session
 from qusi.internal.train_logging_configuration import TrainLoggingConfiguration
 from qusi.internal.train_system_configuration import TrainSystemConfiguration
@@ -21,13 +22,11 @@ def main():
     model = Hadryss.new(input_length=3500)
     train_system_configuration = TrainSystemConfiguration.new()
     train_hyperparameter_configuration = TrainHyperparameterConfiguration.new(
-        batch_size=100, cycles=200, train_steps_per_cycle=1000, validation_steps_per_cycle=100)
+        batch_size=100, cycles=200, train_steps_per_cycle=100, validation_steps_per_cycle=10)
     train_logging_configuration = TrainLoggingConfiguration.new(
-        wandb_entity='ramjet',
-        wandb_project='qusi_development',
         additional_log_dictionary={'run_name': f'{model.__class__.__name__}_transit_lightning'}
     )
-    train_session(train_datasets=[train_light_curve_dataset], validation_datasets=[validation_light_curve_dataset],
+    lightning_train_session(train_datasets=[train_light_curve_dataset], validation_datasets=[validation_light_curve_dataset],
                   model=model,
                   hyperparameter_configuration=train_hyperparameter_configuration,
                   system_configuration=train_system_configuration, logging_configuration=train_logging_configuration)
