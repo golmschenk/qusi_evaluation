@@ -9,10 +9,13 @@ import numpy as np
 import pandas as pd
 from merida.lightcurves_cls import Metadata, LightCurvesNExSciURL
 
+dataset_root_path = Path('data/general_light_curve_benchmark_dataset_collection_moa_microlensing_dataset')
+dataset_light_curve_directory = dataset_root_path.joinpath('light_curves')
+
 
 def download_lightcurve(light_curve_name):
     light_curve = LightCurvesNExSciURL(lightcurve_name_=light_curve_name, lightcurve_class_='')
-    light_curve.save_lightcurve_from_url_as_feather(path_to_save='data/moa_light_curves/')
+    light_curve.save_lightcurve_from_url_as_feather(path_to_save=dataset_light_curve_directory)
 
 
 def prepare_moa_microlensing_dataset():
@@ -20,11 +23,7 @@ def prepare_moa_microlensing_dataset():
     non_candidate_tags = ['v', 'n', 'nr', 'm', 'j']
     no_tag_tags = ['no_tag', '', None, np.nan]
     Path('data/moa_light_curves').mkdir(exist_ok=True, parents=True)
-    metadata_data_frame = Metadata().dataframe
-    metadata_data_frame = metadata_data_frame.drop('tag', axis=1)
-    candlist_data_frame = prepare_candidate_data_frame()
-    metadata_data_frame = pd.merge(metadata_data_frame, candlist_data_frame, how='left', on=['field', 'chip', 'subframe', 'id'])
-    metadata_data_frame.insert(4, 'tag', metadata_data_frame.pop('tag'))
+    metadata_data_frame = prepare_full_metadata_data_frame()
     # Download all candidates.
     candidate_metadata_data_frame = metadata_data_frame[metadata_data_frame['tag'].isin(candidate_tags)]
     for light_curve_name in candidate_metadata_data_frame['lightcurve_name']:
@@ -47,9 +46,20 @@ def prepare_moa_microlensing_dataset():
         download_lightcurve(light_curve_name)
 
 
+def prepare_full_metadata_data_frame() -> pd.DataFrame:
+    metadata_data_frame = Metadata().dataframe
+    metadata_data_frame = metadata_data_frame.drop('tag', axis=1)
+    candlist_data_frame = prepare_candidate_data_frame()
+    metadata_data_frame = pd.merge(metadata_data_frame, candlist_data_frame, how='left',
+                                   on=['field', 'chip', 'subframe', 'id'])
+    metadata_data_frame.insert(4, 'tag', metadata_data_frame.pop('tag'))
+    return metadata_data_frame
+
+
 def prepare_candidate_data_frame():
     candlist_data_frame = pd.read_csv(Path('data/candlist_2023Oct12.txt'), comment='#',
                                       sep='\s+', names=list(range(33)))
+
     def extract_field_number(field_id: str) -> int:
         return int(field_id.replace('gb', ''))
 
@@ -60,6 +70,42 @@ def prepare_candidate_data_frame():
     candlist_data_frame['tag'] = candlist_data_frame[5]
     candlist_data_frame = candlist_data_frame.filter(['field', 'chip', 'subframe', 'id', 'tag'])
     return candlist_data_frame
+
+
+def create_metadata_splits():
+    metadata_data_frame = prepare_full_metadata_data_frame()
+    file_names: list[str] = []
+    tags: list[str] = []
+    for index, row in metadata_data_frame.iterrows():
+        path = dataset_light_curve_directory.joinpath(
+            f'gb{row["field"]}-R-{row["chip"]}-{row["subframe"]}-{row["id"]}.feather')
+        if path.exists():
+            file_names.append(path.name)
+            if row['tag'] in ['no_tag', '', None, np.nan]:
+                tags.append('no_tag')
+            else:
+                tags.append(str(row['tag']))
+    unique_tags = list(set(tags))
+    tag_count_dictionary = {tag: 0 for tag in unique_tags}
+    file_name_split_lists: list[list[str]] = [] * 10
+    tags_split_lists: list[list[str]] = [] * 10
+    for file_name, tag in zip(file_names, tags):
+        split_to_insert_to = tag_count_dictionary[tag] % 10
+        file_name_split_lists[split_to_insert_to].append(file_name)
+        tags_split_lists[split_to_insert_to].append(tag)
+        tag_count_dictionary[tag] += 1
+    test_dataset = pd.DataFrame({'file_name': file_name_split_lists[0], 'tag': tags_split_lists[0]})
+    validate_dataset = pd.DataFrame({'file_name': file_name_split_lists[1], 'tag': tags_split_lists[1]})
+    train_dataset = pd.DataFrame({
+        'file_name': file_name_split_lists[2] + file_name_split_lists[3] + file_name_split_lists[4] +
+                     file_name_split_lists[5] + file_name_split_lists[6] + file_name_split_lists[7] +
+                     file_name_split_lists[8] + file_name_split_lists[9],
+        'tag': tags_split_lists[2] + tags_split_lists[3] + tags_split_lists[4] +
+               tags_split_lists[5] + tags_split_lists[6] + tags_split_lists[7] +
+               tags_split_lists[8] + tags_split_lists[9]})
+    test_dataset.to_csv(dataset_root_path.joinpath('test_metadata.csv'), index=False)
+    validate_dataset.to_csv(dataset_root_path.joinpath('validate_metadata.csv'), index=False)
+    train_dataset.to_csv(dataset_root_path.joinpath('train_metadata.csv'), index=False)
 
 
 if __name__ == '__main__':
