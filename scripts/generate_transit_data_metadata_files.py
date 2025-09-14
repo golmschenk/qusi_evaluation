@@ -8,8 +8,9 @@ import itertools
 import numpy as np
 import random
 from pathlib import Path
-
 import pandas as pd
+import requests
+from astropy.io import ascii
 
 from ramjet.data_interface.tess_data_interface import get_spoc_tic_id_list_from_mast
 from ramjet.data_interface.tess_toi_data_interface import TessToiDataInterface, ToiColumns
@@ -32,15 +33,23 @@ def get_transit_tic_ids():
         (tess_toi_data_interface.toi_dispositions[ToiColumns.disposition.value].isin(['CP', 'KP'])) &
         # Less than a TESS sector.
         (tess_toi_data_interface.toi_dispositions[ToiColumns.transit_period__days.value] <= 27) &
-        # Greater than a smaller number to remove bad data points.
+        # Greater than a small number to remove bad data points.
         (tess_toi_data_interface.toi_dispositions[ToiColumns.transit_period__days.value] >= 0.001)
         ][ToiColumns.tic_id.value]
     return np.unique(positive_tic_ids.values).tolist()
 
 
-def get_eclipsing_binary_tic_ids():
-    eclipsing_binaries_data_frame = pd.read_csv('data/TESS_EB_catalog_31Aug.csv')
-    tic_ids = np.unique(eclipsing_binaries_data_frame['ID'].values).tolist()
+def get_eclipsing_binary_tic_ids() -> list[int]:
+    kostov_new_eclipsing_binary_table_response = requests.get(
+        'https://content.cld.iop.org/journals/0067-0049/279/2/50/revision1/apjsade2d8t3_mrt.txt')
+    kostov_known_eclipsing_binary_table_response = requests.get(
+        'https://content.cld.iop.org/journals/0067-0049/279/2/50/revision1/apjsade2d8t4_mrt.txt')
+    kostov_new_eclipsing_binary_data_frame = ascii.read(kostov_new_eclipsing_binary_table_response.text,
+                                                        format='mrt').to_pandas()
+    kostov_known_eclipsing_binary_data_frame = ascii.read(kostov_known_eclipsing_binary_table_response.text,
+                                                          format='mrt').to_pandas()
+    tic_ids = list(set((kostov_new_eclipsing_binary_data_frame['TIC'].values.tolist() +
+               kostov_known_eclipsing_binary_data_frame['TIC'].values.tolist())))
     return tic_ids
 
 
@@ -89,7 +98,6 @@ def create_split_datasets_metadata_csv_files_for_paths_list(path_list: list[Path
 
 def main():
     with Path('generate_metadata_log.log').open('w') as log_file:
-        print(f'mark-1', file=log_file, flush=True)
         light_curve_paths = list(spoc_sector_27_to_55_light_curve_directory.glob('**/*.fits'))
         print(f'len paths: {len(light_curve_paths)}', file=log_file, flush=True)
         transit_tic_ids = set(get_transit_tic_ids())
@@ -102,7 +110,6 @@ def main():
         eclipsing_binary_light_curve_paths = []
         other_light_curve_paths = []
         tess_ffi_light_curve = TessFfiLightCurve()
-        print(f'mark0', file=log_file, flush=True)
         for light_curve_index, light_curve_path in enumerate(light_curve_paths):
             tic_id, sector = tess_ffi_light_curve.get_tic_id_and_sector_from_file_path(light_curve_path)
             if tic_id in transit_tic_ids:
@@ -113,9 +120,8 @@ def main():
                 other_light_curve_paths.append(light_curve_path)
             if light_curve_index % 10_000 == 0:
                 print(light_curve_index)
-        print(f'mark1', file=log_file, flush=True)
         rng = random.Random(0)
-        print(f'len transit TIC IDs: {len(transit_tic_ids)}', file=log_file, flush=True)
+        print(f'Length of transit TIC IDs: {len(transit_tic_ids)}', file=log_file, flush=True)
         rng.shuffle(transit_light_curve_paths)
         rng.shuffle(eclipsing_binary_light_curve_paths)
         rng.shuffle(other_light_curve_paths)
@@ -123,10 +129,15 @@ def main():
         other_light_curve_paths = other_light_curve_paths[:500_000]
         transit_evaluation_metadata_directory = Path('data/transit_evaluation')
         transit_evaluation_metadata_directory.mkdir(parents=True, exist_ok=True)
-        print(f'mark2', file=log_file, flush=True)
-        create_split_datasets_metadata_csv_files_for_paths_list(transit_light_curve_paths, transit_evaluation_metadata_directory.joinpath('transit.csv'))
-        create_split_datasets_metadata_csv_files_for_paths_list(eclipsing_binary_light_curve_paths, transit_evaluation_metadata_directory.joinpath('eclipsing_binary.csv'))
-        create_split_datasets_metadata_csv_files_for_paths_list(other_light_curve_paths, transit_evaluation_metadata_directory.joinpath('other.csv'))
+        create_split_datasets_metadata_csv_files_for_paths_list(transit_light_curve_paths,
+                                                                transit_evaluation_metadata_directory.joinpath(
+                                                                    'transit.csv'))
+        create_split_datasets_metadata_csv_files_for_paths_list(eclipsing_binary_light_curve_paths,
+                                                                transit_evaluation_metadata_directory.joinpath(
+                                                                    'eclipsing_binary.csv'))
+        create_split_datasets_metadata_csv_files_for_paths_list(other_light_curve_paths,
+                                                                transit_evaluation_metadata_directory.joinpath(
+                                                                    'other.csv'))
 
 
 if __name__ == '__main__':
