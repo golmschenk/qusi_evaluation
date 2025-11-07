@@ -1,4 +1,4 @@
-from qusi_evaluation.internal.moa_microlensing_dataset_preparation import prepare_moa_dataset
+from qusi_evaluation.internal.moa_microlensing_dataset_preparation import prepare_moa_microlensing_dataset
 
 if __name__ == '__main__':
-    prepare_moa_dataset()
+    prepare_moa_microlensing_dataset()

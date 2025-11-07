@@ -8,14 +8,15 @@ dataset_root_path = Path('data/general_light_curve_benchmark_dataset_collection_
 dataset_light_curve_directory = dataset_root_path.joinpath('light_curves')
 
 
-def prepare_moa_dataset():
+def prepare_moa_microlensing_dataset():
     download_light_curves()
     create_metadata_splits()
 
 
 def download_light_curve(light_curve_name):
-    light_curve = LightCurvesNExSciURL(lightcurve_name_=light_curve_name, lightcurve_class_='')
-    light_curve.save_lightcurve_from_url_as_feather(path_to_save=str(dataset_light_curve_directory) + '/')
+    if not dataset_light_curve_directory.joinpath(f'{light_curve_name}.feather').exists():
+        light_curve = LightCurvesNExSciURL(lightcurve_name_=light_curve_name, lightcurve_class_='')
+        light_curve.save_lightcurve_from_url_as_feather(path_to_save=str(dataset_light_curve_directory) + '/')
 
 
 def download_light_curves():
@@ -27,20 +28,20 @@ def download_light_curves():
     candidate_metadata_data_frame = metadata_data_frame[metadata_data_frame['tag'].isin(candidate_tags)]
     for light_curve_name in candidate_metadata_data_frame['lightcurve_name']:
         print(f'Downloading {light_curve_name}...')
-        # download_light_curve(light_curve_name)
+        download_light_curve(light_curve_name)
     for non_candidate_tag in non_candidate_tags:
         non_candidate_metadata_data_frame = metadata_data_frame[metadata_data_frame['tag'].isin([non_candidate_tag])]
         non_candidate_metadata_data_frame = non_candidate_metadata_data_frame.sample(frac=1.0, random_state=0)
         for light_curve_name in non_candidate_metadata_data_frame['lightcurve_name']:
             print(f'Downloading {light_curve_name}...')
-            # download_light_curve(light_curve_name)
+            download_light_curve(light_curve_name)
     no_tag_limit = 100_000
     no_tag_metadata_data_frame = metadata_data_frame[metadata_data_frame['tag'].isin(no_tag_tags)]
     no_tag_metadata_data_frame = no_tag_metadata_data_frame.sample(frac=1.0, random_state=0)
     no_tag_metadata_data_frame = no_tag_metadata_data_frame.head(no_tag_limit)
     for light_curve_name in no_tag_metadata_data_frame['lightcurve_name']:
         print(f'Downloading {light_curve_name}...')
-        # download_light_curve(light_curve_name)
+        download_light_curve(light_curve_name)
 
 
 def prepare_full_metadata_data_frame() -> pd.DataFrame:
