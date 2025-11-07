@@ -1,16 +1,21 @@
 import itertools
+import shutil
+from pathlib import Path
+from random import Random
 
 import numpy as np
-import random
-from pathlib import Path
 import pandas as pd
 import requests
 from astropy.io import ascii
 
-from ramjet.data_interface.tess_data_interface import get_spoc_tic_id_list_from_mast
+from ramjet.data_interface.tess_data_interface import get_spoc_tic_id_list_from_mast, \
+    download_spoc_light_curves_for_tic_ids
 from ramjet.data_interface.tess_toi_data_interface import TessToiDataInterface, ToiColumns
 from ramjet.photometric_database.tess_ffi_light_curve import TessFfiLightCurve
-from qusi_evaluation.download_spoc_sector_27_to_56_light_curve_data import spoc_sector_27_to_55_light_curve_directory
+
+temporary_data_directory = Path('data/temporary')
+dataset_root_path = Path('data/general_light_curve_benchmark_dataset_collection_tess_transit_dataset')
+dataset_light_curve_directory = dataset_root_path.joinpath('light_curves')
 
 
 def get_non_transit_candidate_tic_ids():
@@ -91,9 +96,43 @@ def create_split_datasets_metadata_csv_files_for_paths_list(path_list: list[Path
     create_metadata_csv_file_for_path_list(list(test_path_list), test_csv_path)
 
 
-def main():
-    with Path('generate_metadata_log.log').open('w') as log_file:
-        light_curve_paths = list(spoc_sector_27_to_55_light_curve_directory.glob('**/*.fits'))
+def refine_file_structure():
+    dataset_root_directory = dataset_root_path
+    dataset_root_directory.mkdir(exist_ok=True)
+    dataset_data_directory = dataset_root_directory.joinpath('data')
+    dataset_data_directory.mkdir(exist_ok=True)
+    light_curve_directory = dataset_data_directory.joinpath('light_curves')
+    light_curve_directory.mkdir(exist_ok=True)
+    for csv_path in temporary_data_directory.glob('*.csv'):
+        data_frame = pd.read_csv(csv_path, index_col=None)
+        data_frame['file_name'] = data_frame['relative_path'].apply(relative_path_string_to_file_name)
+        for relative_path_string in data_frame['relative_path']:
+            relative_path = Path(relative_path_string)
+            shutil.copy(relative_path, light_curve_directory.joinpath(relative_path.name))
+        data_frame = data_frame.drop(columns=['relative_path'])
+        data_frame.to_csv(dataset_data_directory.joinpath(csv_path.name))
+
+
+def relative_path_string_to_file_name(relative_path_string: str) -> str:
+    return Path(relative_path_string).name
+
+
+def prepare_tess_transit_dataset():
+    temporary_data_directory.mkdir(exist_ok=True, parents=True)
+    dataset_root_path.mkdir(exist_ok=True, parents=True)
+    dataset_light_curve_directory.mkdir(exist_ok=True, parents=True)
+    with Path('tess_transit_dataset_preparation.log').open('w') as log_file:
+        random = Random(0)
+        transit_tic_ids = get_transit_tic_ids()
+        random.shuffle(transit_tic_ids)
+        non_transit_candidate_tic_ids = get_non_transit_candidate_tic_ids()
+        random.shuffle(non_transit_candidate_tic_ids)
+        eclipsing_binary_tic_ids = get_eclipsing_binary_tic_ids()
+        random.shuffle(eclipsing_binary_tic_ids)
+        download_spoc_light_curves_for_tic_ids(transit_tic_ids, dataset_light_curve_directory)
+        download_spoc_light_curves_for_tic_ids(eclipsing_binary_tic_ids, dataset_light_curve_directory, limit=100_000)
+        download_spoc_light_curves_for_tic_ids(non_transit_candidate_tic_ids, dataset_light_curve_directory, limit=500_000)
+        light_curve_paths = list(dataset_light_curve_directory.glob('**/*.fits'))
         print(f'len paths: {len(light_curve_paths)}', file=log_file, flush=True)
         transit_tic_ids = set(get_transit_tic_ids())
         print(f'Transit len {len(transit_tic_ids)}', file=log_file, flush=True)
@@ -115,24 +154,23 @@ def main():
                 other_light_curve_paths.append(light_curve_path)
             if light_curve_index % 10_000 == 0:
                 print(light_curve_index)
-        rng = random.Random(0)
+        rng = Random(0)
         print(f'Length of transit TIC IDs: {len(transit_tic_ids)}', file=log_file, flush=True)
         rng.shuffle(transit_light_curve_paths)
         rng.shuffle(eclipsing_binary_light_curve_paths)
         rng.shuffle(other_light_curve_paths)
         eclipsing_binary_light_curve_paths = eclipsing_binary_light_curve_paths[:100_000]
         other_light_curve_paths = other_light_curve_paths[:500_000]
-        transit_evaluation_metadata_directory = Path('data/transit_evaluation')
-        transit_evaluation_metadata_directory.mkdir(parents=True, exist_ok=True)
         create_split_datasets_metadata_csv_files_for_paths_list(transit_light_curve_paths,
-                                                                transit_evaluation_metadata_directory.joinpath(
+                                                                temporary_data_directory.joinpath(
                                                                     'transit.csv'))
         create_split_datasets_metadata_csv_files_for_paths_list(eclipsing_binary_light_curve_paths,
-                                                                transit_evaluation_metadata_directory.joinpath(
+                                                                temporary_data_directory.joinpath(
                                                                     'eclipsing_binary.csv'))
         create_split_datasets_metadata_csv_files_for_paths_list(other_light_curve_paths,
-                                                                transit_evaluation_metadata_directory.joinpath(
+                                                                temporary_data_directory.joinpath(
                                                                     'other.csv'))
+        refine_file_structure()
 
 
 if __name__ == '__main__':
