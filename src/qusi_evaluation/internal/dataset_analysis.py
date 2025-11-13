@@ -24,13 +24,13 @@ def show_light_curve_statistics(
     for light_curve_path in dataset_root_directory.glob(f'**/*.{light_curve_extension}'):
         times, fluxes = load_light_curve_function(light_curve_path)
         lengths.append(times.shape[0])
-        if np.max(fluxes) > maximum_flux:
+        if np.nanmax(fluxes) > maximum_flux:
             maximum_flux = np.nanmax(fluxes)
-        if np.min(fluxes) < minimum_flux:
+        if np.nanmin(fluxes) < minimum_flux:
             minimum_flux = np.nanmin(fluxes)
-        if np.max(times) > maximum_time:
+        if np.nanmax(times) > maximum_time:
             maximum_time = np.nanmax(times)
-        if np.min(times) < minimum_time:
+        if np.nanmin(times) < minimum_time:
             minimum_time = np.nanmin(times)
         if not nan_time_exists:
             if np.any(np.isnan(times)):
