@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "qusi>=1.0.0",
+    "gobo",
 ]
 
 [build-system]
