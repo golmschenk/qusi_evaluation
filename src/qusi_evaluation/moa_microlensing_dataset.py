@@ -50,7 +50,7 @@ def get_paths_for_class_and_dataset_type(class_: MoaMicrolensingDatasetClassName
 def load_times_and_fluxes_from_path(path):
     light_curve = LightCurvesNExSciLocalFeather(lightcurve_name_=path.stem, lightcurve_class_='', data_path_=str(path.parent) + '/')
     times, fluxes, corrected_fluxes, flux_errors = light_curve.get_days_fluxes_errors()
-    return times, corrected_fluxes
+    return times, fluxes
 
 
 def get_test_dataset():

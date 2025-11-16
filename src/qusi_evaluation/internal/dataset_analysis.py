@@ -6,7 +6,7 @@ from bokeh.models import Column, Row, Div
 from pathlib import Path
 from typing import Callable
 
-from gobo.internal.histogram import create_histogram_figure
+from gobo.high_level import histogram
 
 
 def show_light_curve_statistics(
@@ -40,9 +40,9 @@ def create_light_curve_statistics_report(
      nan_time_exists
      ) = get_light_curve_statistics(dataset_root_directory, light_curve_extension, load_light_curve_function)
     lengths = np.array(lengths)
-    lengths_histogram_figure = create_histogram_figure(lengths)
+    lengths_histogram_figure = histogram(lengths, title='Lengths', x_axis_label='Count', y_axis_label='Length')
     non_nan_flux_lengths = np.array(non_nan_flux_lengths)
-    non_nan_flux_lengths_histogram_figure = create_histogram_figure(non_nan_flux_lengths)
+    non_nan_flux_lengths_histogram_figure = histogram(non_nan_flux_lengths, title='Non-NaN flux lengths', x_axis_label='Count', y_axis_label='Length')
     table_dictionary = {
         'Light curve count': len(lengths),
         'Light curve mean length': np.mean(lengths),
@@ -57,9 +57,9 @@ def create_light_curve_statistics_report(
     }
     div_text = '<table>'
     for name, value in table_dictionary.items():
-        div_text += f'<tr><td>{name}</td><td>{value}</td></tr>'
+        div_text += f'<tr><td>{name}:</td><td>{value}</td></tr>'
     div_text += '</table>'
-    main_statistics_table = Div(text=div_text)
+    main_statistics_table = Div(text=div_text, styles={'font-size': '140%'})
     row = Row(lengths_histogram_figure, non_nan_flux_lengths_histogram_figure)
     column = Column(main_statistics_table, row)
     save(column, f'{dataset_root_directory.name}.html')
